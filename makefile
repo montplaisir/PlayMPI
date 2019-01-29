@@ -1,5 +1,9 @@
-hello: hello.cpp
-	mpic++ -o hello hello.cpp
+EXE = hello.exe
+
+all: $(EXE)
+
+$(EXE): hello.cpp
+	mpic++ -o $@ $<
 
 clean:
-	rm -f hello
+	rm -f $(EXE)
