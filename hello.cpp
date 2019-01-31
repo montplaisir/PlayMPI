@@ -5,6 +5,8 @@
 
 const int tagPointToEvaluate = 0;
 const int tagEvaluatedPoint = 1;
+const int tagEvaluationDone = 2;
+const int tagWorkerDone = 3;
 
 class EvalPoint
 {
@@ -75,7 +77,7 @@ void sendPointsToWorkers(const std::vector<double> pointsVector, const int world
         // tag: Used for message matching - Here, 0 for master-to-worker, 1 for worker-to-master.
         // comm: Communication context - Here, MPI_COMM_WORLD.
         double x = pointsVector[pointIndex];
-        std::cout << "Master sends " << x << " to worker " << workerRank << std::endl;
+        //std::cout << "Master sends " << x << " to worker " << workerRank << std::endl;
         MPI_Send(&x, 1, MPI_DOUBLE, workerRank, tagPointToEvaluate, MPI_COMM_WORLD);
     }
 }
@@ -94,16 +96,11 @@ bool getNewPointToEvaluate(double &x)
 
     bool newPointReceived = false;
     MPI_Status status;
-    int newPointToEval = 0;
+    int flagNewPointToEval = 0;
 
-// VRM il faut un while quelque part mais pour l'instant ca ne marche pas.
-    while (!newPointReceived)
-    {
-    std::cout << "In worker " << workerRank <<", calling MPI_Iprobe." << std::endl;
-    MPI_Iprobe(0, tagPointToEvaluate, MPI_COMM_WORLD, &newPointToEval, &status);
-    std::cout << "In worker " << workerRank <<", MPI_Iprobe new point to eval: " << newPointToEval << std::endl;
+    MPI_Iprobe(0, tagPointToEvaluate, MPI_COMM_WORLD, &flagNewPointToEval, &status);
 
-    if (newPointToEval > 0)
+    if (flagNewPointToEval > 0)
     {
         // Receive X
         // MPI_Recv(address, maxcount, datatype, source, tag, comm, status)
@@ -117,22 +114,36 @@ bool getNewPointToEvaluate(double &x)
         //
         MPI_Request request;
         MPI_Recv(&x, 1, MPI_DOUBLE, 0, tagPointToEvaluate, MPI_COMM_WORLD, &status);
-
-        std::cout << "Worker " << workerRank << " on " << processorName << " Received x = " << x << std::endl;
-
+   
+        //std::cout << "Worker " << workerRank << " on " << processorName << " Received x = " << x << std::endl;
+  
         newPointReceived = true;
-    }
-    std::cout << "Worker " << workerRank << " done receiving point." << std::endl;
     }
 
     return newPointReceived;
 }
 
 
-// Master receives evaluated points.
-bool receiveEvaluatedPoints(const int worldSize, std::vector<EvalPoint> &evalpointVector)
+bool isEvaluationDone()
 {
-    bool allPointsEvaluated = true;
+    bool retDone = false;
+    int evaluationDone = 0;
+    int flagEvaluationDone = 0;
+    MPI_Status status;
+    MPI_Iprobe(0, tagEvaluationDone, MPI_COMM_WORLD, &flagEvaluationDone, &status);
+    if (flagEvaluationDone > 0)
+    {
+        MPI_Recv(&evaluationDone, 1, MPI_INT, 0, tagEvaluationDone, MPI_COMM_WORLD, &status);
+        retDone = true;
+    }
+    return retDone;
+}
+
+
+// Master receives evaluated points.
+bool receiveEvaluatedPoints(const int worldSize, const int nbPoints, std::vector<EvalPoint> &evalpointVector)
+{
+    bool allPointsEvaluated = false;
 
     // Go around all workers.
     for (int workerRank = 1; workerRank < worldSize; workerRank++)
@@ -142,7 +153,6 @@ bool receiveEvaluatedPoints(const int worldSize, std::vector<EvalPoint> &evalpoi
         MPI_Status status;
         int newEvalPointReceived = 0;
         MPI_Iprobe(workerRank, tagEvaluatedPoint, MPI_COMM_WORLD, &newEvalPointReceived, &status);
-        std::cout << "In master, MPI_Iprobe has received new evalpoint: " << newEvalPointReceived << std::endl;
         if (newEvalPointReceived > 0)
         {
             // Actually receive evaluation.
@@ -152,15 +162,15 @@ bool receiveEvaluatedPoints(const int worldSize, std::vector<EvalPoint> &evalpoi
             double x = xfe[0];
             double f = xfe[1];
             double eval_ok = xfe[2];
-            std::cout << "Received from worker " << workerRank << ": X = " << x << " f = " << f << " eval_ok = " << eval_ok << std::endl;
             EvalPoint evalpoint(x, f, eval_ok);
             evalpointVector.push_back(evalpoint);
-            // We consider all points evaluated only when there is no more points to be received.
-            allPointsEvaluated = false;
+            if (evalpointVector.size() == nbPoints)
+            {
+                allPointsEvaluated = true;
+            }
         }
     }
 
-    std::cout << "receiveEvaluatedPoints all points evaluated: " << allPointsEvaluated << std::endl;
     return allPointsEvaluated;
 }
 
@@ -177,10 +187,57 @@ void sendPointToMaster(const double &x, const double &f, const double &eval_ok)
     evalpoint[2] = eval_ok;
 
     MPI_Send(&evalpoint, 3, MPI_DOUBLE, 0, tagEvaluatedPoint, MPI_COMM_WORLD);
+}
 
+
+// Master sends word to workers that evaluations are done.
+void sendEvaluationDoneToWorkers(const int worldSize)
+{
+    int done = 1;
+    for (int workerRank = 1; workerRank < worldSize; workerRank++)
+    {
+        MPI_Send(&done, 1, MPI_INT, workerRank, tagEvaluationDone, MPI_COMM_WORLD);
+    }
+}
+
+
+// Worker sends word to master that it is done.
+void sendWorkerDoneToMaster()
+{
+    int done = 1;
     int worldRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
-    std::cout << "Worker " << worldRank << " send " << evalpoint[0] << " " << evalpoint[1] << " " << evalpoint[2] << std::endl;
+    MPI_Send(&done, 1, MPI_INT, 0, tagWorkerDone, MPI_COMM_WORLD);
+}
+
+
+// Master receives "done" from workers, until we get worldSize.
+void waitAllWorkersDone(const int worldSize)
+{
+    bool allWorkersDone = false;
+
+    MPI_Status status;
+    int flagDone = 0;
+    int workerDone = 0;
+    int nbWorkersDone = 0;
+
+    while (!allWorkersDone)
+    {
+        for (int workerRank = 1; workerRank < worldSize && !allWorkersDone; workerRank++)
+        {
+            MPI_Iprobe(workerRank, tagWorkerDone, MPI_COMM_WORLD, &flagDone, &status);
+            if (flagDone > 0)
+            {
+                MPI_Recv(&workerDone, 1, MPI_INT, workerRank, tagWorkerDone, MPI_COMM_WORLD, &status);
+                nbWorkersDone++;
+                if ((worldSize-1) == nbWorkersDone)
+                {
+                    allWorkersDone = true;
+                }
+            }
+        }
+    }
+
 }
 
 
@@ -227,15 +284,21 @@ int main(int argc, char** argv)
         bool allPointsReceived = false;
         while (!allPointsReceived)
         {
-            allPointsReceived = receiveEvaluatedPoints(worldSize, evalpointVector);
+            allPointsReceived = receiveEvaluatedPoints(worldSize, nbPoints, evalpointVector);
         }
         // All points received, master is done.
+
+        // Send word to workers that evaluations are done, so that they stop "listening".
+        sendEvaluationDoneToWorkers(worldSize);
+        // Wait for all workers to have acknowledged they are done.
+        waitAllWorkersDone(worldSize);
+
         // Print all points.
         std::cout << std::endl << "Summary of " << evalpointVector.size() << " evalpoints:" << std::endl;
         for (int i = 0; i < evalpointVector.size(); i++)
         {
             EvalPoint ep = evalpointVector[i];
-            std::cout << ep.getX() << " " << ep.getF() << " " << ep.getEvalOk() << std::endl;
+            std::cout << ep.getX() << "\t" << ep.getF() << "\t" << ep.getEvalOk() << std::endl;
         }
 
     }
@@ -243,13 +306,21 @@ int main(int argc, char** argv)
     // Workers get a point, evaluate it, and return its evaluation.
     if (0 != worldRank)
     {
-        double x = 0.0;
-        double f = 0.0;
-        if (getNewPointToEvaluate(x))
+        bool evaluationDone = false;
+        while (!evaluationDone)
         {
-            bool eval_ok = eval_x(x, f);
-            sendPointToMaster(x, f, eval_ok);
+            double x = 0.0;
+            double f = 0.0;
+            if (getNewPointToEvaluate(x))
+            {
+                bool eval_ok = eval_x(x, f);
+                sendPointToMaster(x, f, eval_ok);
+            }
+            evaluationDone = isEvaluationDone();
         }
+        //std::cout << "Worker " << worldRank << " is done." << std::endl;
+        // Send word that the worker is done.
+        sendWorkerDoneToMaster();
     }
 
     // Finalize the MPI environment.
