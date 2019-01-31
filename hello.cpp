@@ -87,13 +87,6 @@ bool getNewPointToEvaluate(double &x)
 {
     // Probe if there is a Send from master waiting to be received by this worker.
 
-    // Useful values for debug.
-    int workerRank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &workerRank);
-    char processorName[MPI_MAX_PROCESSOR_NAME];
-    int nameLen;
-    MPI_Get_processor_name(processorName, &nameLen);
-
     bool newPointReceived = false;
     MPI_Status status;
     int flagNewPointToEval = 0;
@@ -115,8 +108,6 @@ bool getNewPointToEvaluate(double &x)
         MPI_Request request;
         MPI_Recv(&x, 1, MPI_DOUBLE, 0, tagPointToEvaluate, MPI_COMM_WORLD, &status);
    
-        //std::cout << "Worker " << workerRank << " on " << processorName << " Received x = " << x << std::endl;
-  
         newPointReceived = true;
     }
 
@@ -204,9 +195,17 @@ void sendEvaluationDoneToWorkers(const int worldSize)
 // Worker sends word to master that it is done.
 void sendWorkerDoneToMaster()
 {
+    /*
+    // Useful values for debug.
+    int workerRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &workerRank);
+    char processorName[MPI_MAX_PROCESSOR_NAME];
+    int nameLen;
+    MPI_Get_processor_name(processorName, &nameLen);
+    std::cout << "Worker " << workerRank << " on processor " << processorName << " is done." << std::endl;
+    */
+
     int done = 1;
-    int worldRank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
     MPI_Send(&done, 1, MPI_INT, 0, tagWorkerDone, MPI_COMM_WORLD);
 }
 
@@ -318,7 +317,6 @@ int main(int argc, char** argv)
             }
             evaluationDone = isEvaluationDone();
         }
-        //std::cout << "Worker " << worldRank << " is done." << std::endl;
         // Send word that the worker is done.
         sendWorkerDoneToMaster();
     }
