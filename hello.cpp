@@ -244,11 +244,11 @@ int main(int argc, char** argv)
 {
     // Usage: mpirun -np <number of processes> -f <hostfile> hello
 
-    // initialize random seed
-    srand(time(NULL));
-
     // Initialize the MPI environment
     MPI_Init(&argc, &argv);
+
+    // initialize random seed
+    srand(time(NULL));
 
     // Get the number of processes
     int worldSize;
