@@ -11,22 +11,25 @@ const int tagWorkerDone = 3;
 class EvalPoint
 {
 private:
-    double _x;
-    int _f;
-    bool _evalOk;
+    double   _x;
+    int      _f;
+    bool     _evalOk;
+    int      _workerRank;
 
 public:
     // Constructor
-    EvalPoint(double x, double f, bool evalOk)
+    EvalPoint(double x, double f, bool evalOk, int workerRank)
       : _x(x),
         _f(f),
-        _evalOk(evalOk)
+        _evalOk(evalOk),
+        _workerRank(workerRank)
     {}
 
     // Get/Set
     double getX()       { return _x; }
     int    getF()       { return _f; }
     double getEvalOk()  { return _evalOk; }
+    int    getWorker()  { return _workerRank; }
 };
 
 
@@ -36,6 +39,16 @@ public:
 // Returns: true if eval went OK, false otherwise.
 bool eval_x(const double x, double &f)
 {
+    // Debug
+    /*
+    int workerRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &workerRank);
+    char processorName[MPI_MAX_PROCESSOR_NAME];
+    int nameLen;
+    MPI_Get_processor_name(processorName, &nameLen);
+    std::cout << "Worker " << workerRank << " on processor " << processorName << " is doing an evaluation." << std::endl;
+    */
+
     bool eval_ok = false;
 
     f = static_cast<int> (x);
@@ -153,7 +166,7 @@ bool receiveEvaluatedPoints(const int worldSize, const int nbPoints, std::vector
             double x = xfe[0];
             double f = xfe[1];
             double eval_ok = xfe[2];
-            EvalPoint evalpoint(x, f, eval_ok);
+            EvalPoint evalpoint(x, f, eval_ok, workerRank);
             evalpointVector.push_back(evalpoint);
             if (evalpointVector.size() == nbPoints)
             {
@@ -297,7 +310,7 @@ int main(int argc, char** argv)
         for (int i = 0; i < evalpointVector.size(); i++)
         {
             EvalPoint ep = evalpointVector[i];
-            std::cout << ep.getX() << "\t" << ep.getF() << "\t" << ep.getEvalOk() << std::endl;
+            std::cout << ep.getX() << "\t" << ep.getF() << "\t" << ep.getWorker() << std::endl;
         }
 
     }
