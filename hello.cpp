@@ -273,7 +273,7 @@ int main(int argc, char** argv)
 
     if (worldSize <= 1 && 0 == worldRank)
     {
-        std::cout << "Usage: mpirun -np <number of processes> -f <hostfile> " << argv[0] << std::endl;
+        std::cout << "Usage: mpirun -np <nb of processes> -f <hostfile> " << argv[0] << " [nb of points to eval]" << std::endl;
         return 1;
     }
 
@@ -307,6 +307,7 @@ int main(int argc, char** argv)
 
         // Print all points.
         std::cout << std::endl << "Summary of " << evalpointVector.size() << " evalpoints:" << std::endl;
+        std::cout << "X\tF\tProcess" << std::endl;
         for (int i = 0; i < evalpointVector.size(); i++)
         {
             EvalPoint ep = evalpointVector[i];
