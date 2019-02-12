@@ -1,0 +1,9 @@
+Next step:
+
+Modify (or rewrite) hello so that it can either work in MPI or non-MPI mode.
+Make it similar to the implementation of OpenMP in NOMAD, i.e., the master
+always does some work, and then if there are some workers available, they
+work too. Make it easy to debug by using the non-MPI version.
+Have the send and receive functions work in an "if MPI ... else" way.
+The rest of the code must be equal for both MPI and non-MPI versions,
+as much as possible.
