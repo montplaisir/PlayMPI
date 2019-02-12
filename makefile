@@ -1,9 +1,13 @@
-EXE = hello.exe
+LAUNCH  = launch.exe
+EXE     = hello.exe
 
-all: $(EXE)
+all: $(EXE) $(LAUNCH)
 
 $(EXE): hello.cpp
 	mpic++ -o $@ $<
 
+$(LAUNCH): launch.cpp hello.exe
+	g++ -o $@ $<
+
 clean:
-	rm -f $(EXE)
+	rm -f $(EXE) $(LAUNCH)
