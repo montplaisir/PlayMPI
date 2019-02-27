@@ -1,13 +1,19 @@
-LAUNCH  = launch.exe
-EXE     = hello.exe
+LAUNCH      = launch.exe
+ALGO_EXE    = algo.exe
 
-all: $(EXE) $(LAUNCH)
+all: $(ALGO_EXE) $(LAUNCH)
 
-$(EXE): hello.cpp
-	mpic++ -o $@ $<
+#$(EXE): EvalPoint.hpp Evaluator.hpp EvaluatorControl.hpp evc.cpp
+#	mpic++ -o $@ $?
 
-$(LAUNCH): launch.cpp hello.exe
+EvaluatorControl.o: EvaluatorControl.hpp
+	mpic++ -c $@ $?
+
+$(ALGO_EXE): EvaluatorControl.o algo.cpp
+	mpic++ -o $@ $?
+
+$(LAUNCH): launch.cpp $(ALGO_EXE)
 	g++ -o $@ $<
 
 clean:
-	rm -f $(EXE) $(LAUNCH)
+	rm -f $(ALGO_EXE) $(LAUNCH) *.o

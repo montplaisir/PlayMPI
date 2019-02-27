@@ -4,7 +4,7 @@ int main(int argc, char** argv)
 {
     std::string nbProcesses = "5";
     std::string hostfile    = "";
-    std::string exec        = "hello.exe";
+    std::string exec        = "algo.exe";
     std::string nbPoints    = "10";
     bool useMPI = true;
 
