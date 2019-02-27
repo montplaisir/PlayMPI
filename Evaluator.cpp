@@ -1,19 +1,25 @@
-#include <mpi.h>
-#include <iostream>
-#include <vector>
 
+#include "Evaluator.hpp"
 
-class Evaluator
+bool Evaluator::eval_x(const double x, double &f)
 {
-public:
-    Evaluator() {}
+    // Debug
+    /*
+    int workerRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &workerRank);
+    char processorName[MPI_MAX_PROCESSOR_NAME];
+    int nameLen;
+    MPI_Get_processor_name(processorName, &nameLen);
+    std::cout << "Worker " << workerRank << " on processor " << processorName << " is doing an evaluation." << std::endl;
+    */
 
-    // Mock evaluator.
-    // Input: x.
-    // Output: f.
-    // Returns: true if eval went OK, false otherwise.
-    bool eval_x(const double x, double &f);
-};
+    bool eval_ok = false;
+
+    f = static_cast<int> (x);
+    eval_ok = true;
+
+    return eval_ok;
+}
 
 
 /*
