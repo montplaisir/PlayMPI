@@ -139,7 +139,8 @@ int main(int argc, char** argv)
 
     if (worldSize <= 1 && 0 == worldRank)
     {
-        std::cout << "Usage: mpirun -np <nb of processes> -f <hostfile> " << argv[0] << " [nb of points to eval]" << std::endl;
+        // VRM TODO: clarify ... use displayUsage() ?
+        std::cout << "Usage: mpirun -np <nb of processes> -f <hostfile> " << argv[0] << " <param file>" << std::endl;
         return 1;
     }
 
