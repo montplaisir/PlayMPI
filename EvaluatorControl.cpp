@@ -3,14 +3,19 @@
 void EvaluatorControl::run()
 {
     // Get the rank of the process
-    int worldRank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &worldRank);
+    int workerRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &workerRank);
+    // Useful values for debug.
+    char processorName[MPI_MAX_PROCESSOR_NAME];
+    int nameLen;
+    MPI_Get_processor_name(processorName, &nameLen);
 
-    std::cout << "VRM: run EvaluatorControl for rank " << worldRank << std::endl;
+
+    std::cout << "VRM: run EvaluatorControl for rank " << workerRank << std::endl;
 
     // Start workers
     // Workers get a point, evaluate it, and return its evaluation.
-    if (0 != worldRank)
+    if (0 != workerRank)
     {
         bool evaluationDone = false;
         while (!evaluationDone)
@@ -19,7 +24,7 @@ void EvaluatorControl::run()
             double f = 0.0;
             if (getNewPointToEvaluate(x))
             {
-                std::cout << "VRM: EvaluatorControl calls eval_x for rank " << worldRank << std::endl;
+                std::cout << "VRM: EvaluatorControl calls eval_x for rank " << workerRank << " on host " << processorName << std::endl;
                 bool eval_ok = _evaluator.eval_x(x, f);
                 sendPointToMaster(x, f, eval_ok);
             }
@@ -93,16 +98,6 @@ bool EvaluatorControl::isEvaluationDone()
 // Worker sends word to master that it is done.
 void EvaluatorControl::sendWorkerDoneToMaster()
 {
-    /*
-    // Useful values for debug.
-    int workerRank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &workerRank);
-    char processorName[MPI_MAX_PROCESSOR_NAME];
-    int nameLen;
-    MPI_Get_processor_name(processorName, &nameLen);
-    std::cout << "Worker " << workerRank << " on processor " << processorName << " is done." << std::endl;
-    */
-
     int done = 1;
     MPI_Send(&done, 1, MPI_INT, 0, tagWorkerDone, MPI_COMM_WORLD);
 }
